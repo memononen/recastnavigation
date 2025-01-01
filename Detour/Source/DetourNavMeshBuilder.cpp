@@ -624,7 +624,7 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 	// Store and create BVtree.
 	if (params->buildBvTree)
 	{
-		createBVTree(params, navBvtree, 2*params->polyCount);
+		header->bvNodeCount = createBVTree(params, navBvtree, 2*params->polyCount);
 	}
 	
 	// Store Off-Mesh connections.

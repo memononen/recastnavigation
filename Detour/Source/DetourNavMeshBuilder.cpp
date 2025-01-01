@@ -294,7 +294,8 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 	// whose start point is inside the tile.
 	unsigned char* offMeshConClass = 0;
 	int storedOffMeshConCount = 0;
-	int offMeshConLinkCount = 0;
+	int startOffMeshConLinkCount = 0;
+	int endOffMeshConLinkCount = 0;
 	
 	if (params->offMeshConCount > 0)
 	{
@@ -349,9 +350,9 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 
 			// Cound how many links should be allocated for off-mesh connections.
 			if (offMeshConClass[i*2+0] == 0xff)
-				offMeshConLinkCount++;
-			if (offMeshConClass[i*2+1] == 0xff)
-				offMeshConLinkCount++;
+				startOffMeshConLinkCount++;
+			if (offMeshConClass[i*2+1] == 0xff && params->offMeshConDir[i])
+				endOffMeshConLinkCount++;
 
 			if (offMeshConClass[i*2+0] == 0xff)
 				storedOffMeshConCount++;
@@ -382,7 +383,7 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 		}
 	}
 
-	const int maxLinkCount = edgeCount + portalCount*2 + offMeshConLinkCount*2;
+	const int maxLinkCount = edgeCount + portalCount*2 + startOffMeshConLinkCount*3 + endOffMeshConLinkCount;
 	
 	// Find unique detail vertices.
 	int uniqueDetailVertCount = 0;

@@ -1268,19 +1268,17 @@ static int triangulate(int n, const unsigned char* verts, unsigned short* indice
 		n--;
 		for (int k = i1; k < n; k++)
 			indices[k] = indices[k+1];
-		
-		if (i1 >= n) i1 = 0;
-		i = prev(i1,n);
+
 		// Update diagonal flags.
-		if (diagonal(prev(i, n), i1, n, verts, indices))
-			indices[i] |= 0x8000;
-		else
-			indices[i] &= 0x7fff;
-		
-		if (diagonal(i, next(i1, n), n, verts, indices))
-			indices[i1] |= 0x8000;
-		else
-			indices[i1] &= 0x7fff;
+		for (int i = 0; i < n; i++)
+		{
+			int i1 = next(i, n);
+			int i2 = next(i1, n);
+			if (diagonal(i, i2, n, verts, indices))
+				indices[i1] |= 0x8000;
+			else
+				indices[i1] &= 0x7fff;
+		}
 	}
 	
 	// Append the remaining triangle.

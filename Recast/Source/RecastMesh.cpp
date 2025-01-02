@@ -427,18 +427,16 @@ static int triangulate(int n, const int* verts, int* indices, int* tris)
 		for (int k = i1; k < n; k++)
 			indices[k] = indices[k+1];
 		
-		if (i1 >= n) i1 = 0;
-		i = prev(i1,n);
 		// Update diagonal flags.
-		if (diagonal(prev(i, n), i1, n, verts, indices))
-			indices[i] |= 0x80000000;
-		else
-			indices[i] &= 0x0fffffff;
-		
-		if (diagonal(i, next(i1, n), n, verts, indices))
-			indices[i1] |= 0x80000000;
-		else
-			indices[i1] &= 0x0fffffff;
+		for (int i = 0; i < n; i++)
+		{
+			int i1 = next(i, n);
+			int i2 = next(i1, n);
+			if (diagonal(i, i2, n, verts, indices))
+				indices[i1] |= 0x80000000;
+			else
+				indices[i1] &= 0x0fffffff;
+		}
 	}
 	
 	// Append the remaining triangle.

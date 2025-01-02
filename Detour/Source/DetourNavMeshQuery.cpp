@@ -1837,6 +1837,7 @@ dtStatus dtNavMeshQuery::findStraightPath(const float* startPos, const float* en
 		int apexIndex = 0;
 		int leftIndex = 0;
 		int rightIndex = 0;
+		bool apexCrossTile = false;
 		
 		unsigned char leftPolyType = 0;
 		unsigned char rightPolyType = 0;
@@ -1921,6 +1922,9 @@ dtStatus dtNavMeshQuery::findStraightPath(const float* startPos, const float* en
 							return stat;					
 					}
 				
+					if (m_nav->decodePolyIdTile(path[apexIndex]) != m_nav->decodePolyIdTile(path[leftIndex]))
+						apexCrossTile = true;
+
 					dtVcopy(portalApex, portalLeft);
 					apexIndex = leftIndex;
 					
@@ -1972,6 +1976,9 @@ dtStatus dtNavMeshQuery::findStraightPath(const float* startPos, const float* en
 							return stat;
 					}
 
+					if (m_nav->decodePolyIdTile(path[apexIndex]) != m_nav->decodePolyIdTile(path[rightIndex]))
+						apexCrossTile = true;
+
 					dtVcopy(portalApex, portalRight);
 					apexIndex = rightIndex;
 					
@@ -2000,6 +2007,21 @@ dtStatus dtNavMeshQuery::findStraightPath(const float* startPos, const float* en
 					continue;
 				}
 			}
+
+			// prevent occasion errors when portalApex, portalLeft and portalRight form an angle larger than 180 degrees
+			if (apexCrossTile && dtTriArea2D(portalApex, portalLeft, portalRight) < 0.0f) {
+				float l = dtVdist2DSqr(portalApex, portalLeft);
+				float r = dtVdist2DSqr(portalApex, portalRight);
+				if (l < r) {
+					dtVcopy(portalApex, portalLeft);
+					apexIndex = leftIndex;
+				}
+				else {
+					dtVcopy(portalApex, portalRight);
+					apexIndex = rightIndex;
+				}
+			}
+			apexCrossTile = false;
 		}
 
 		// Append portals along the current straight path segment.

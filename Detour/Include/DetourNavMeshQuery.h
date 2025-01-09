@@ -192,6 +192,25 @@ public:
 					  const dtQueryFilter* filter,
 					  dtPolyRef* path, int* pathCount, const int maxPath) const;
 
+	/// Finds a path from the start polygon to the end polygon.
+	///  @param[in]		startRef	The refrence id of the start polygon.
+	///  @param[in]		startPos	A position within the start polygon. [(x, y, z)]
+	///  @param[in]		endRefs		The reference id of the end polygon.
+	///  @param[in]		endPoses	A position within the end polygon. [(x, y, z)]
+	///  @param[in]		numEnds		A position within the end polygon. [(x, y, z)]
+	///  @param[in]		filter		The polygon filter to apply to the query.
+	///  @param[out]	path		An ordered list of polygon references representing the path. (Start to end.) 
+	///  							[(polyRef) * @p pathCount]
+	///  @param[out]	pathCount	The number of polygons returned in the @p path array.
+	///  @param[in]		maxPath		The maximum number of polygons the @p path array can hold. [Limit: >= 1]
+	dtStatus findPathToAny(dtPolyRef startRef, const float* startPos,
+					  const dtPolyRef* endRefs,
+					  const float* endPoses,
+					  const int numEnds,
+					  const dtQueryFilter* filter,
+					  dtPolyRef* path, int* pathCount, const int maxPath,
+					  int* endFoundIdx) const;
+
 	/// Finds the straight path from the start to the end position within the polygon corridor.
 	///  @param[in]		startPos			Path start position. [(x, y, z)]
 	///  @param[in]		endPos				Path end position. [(x, y, z)]
@@ -575,6 +594,15 @@ private:
 	class dtNodePool* m_tinyNodePool;	///< Pointer to small node pool.
 	class dtNodePool* m_nodePool;		///< Pointer to node pool.
 	class dtNodeQueue* m_openList;		///< Pointer to open list queue.
+	
+	template<bool isMultiEnd>
+	dtStatus findPathToAnyInternal(dtPolyRef startRef, const float* startPos,
+					  const dtPolyRef* endRefs,
+					  const float* endPoses,
+					  const int numEnds,
+					  const dtQueryFilter* filter,
+					  dtPolyRef* path, int* pathCount, const int maxPath,
+					  int* endFoundIdx) const;
 };
 
 /// Allocates a query object using the Detour allocator.

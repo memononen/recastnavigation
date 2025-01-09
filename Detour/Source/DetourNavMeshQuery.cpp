@@ -958,7 +958,6 @@ dtStatus dtNavMeshQuery::queryPolygons(const float* center, const float* halfExt
 	
 	return DT_SUCCESS;
 }
-
 /// @par
 ///
 /// If the end polygon cannot be reached through the navigation graph,
@@ -975,6 +974,34 @@ dtStatus dtNavMeshQuery::findPath(dtPolyRef startRef, dtPolyRef endRef,
 								  const dtQueryFilter* filter,
 								  dtPolyRef* path, int* pathCount, const int maxPath) const
 {
+	return findPathToAnyInternal<false>(startRef, startPos, &endRef, endPos, 
+			1, filter, path, pathCount, maxPath, 0);
+}
+
+dtStatus dtNavMeshQuery::findPathToAny(dtPolyRef startRef,
+								  const float* startPos, 
+								  const dtPolyRef* endRefs,
+								  const float* endPoses,
+								  const int numEnds,
+								  const dtQueryFilter* filter,
+								  dtPolyRef* path, int* pathCount, const int maxPath,
+								  int* endFoundIdx) const
+{
+	return findPathToAnyInternal<true>(startRef, startPos, endRefs, endPoses, 
+			numEnds, filter, path, pathCount, maxPath, endFoundIdx);
+}
+
+
+template<bool isMultiEnd>
+dtStatus dtNavMeshQuery::findPathToAnyInternal(dtPolyRef startRef,
+								  const float* startPos, 
+								  const dtPolyRef* endRefs,
+								  const float* endPoses,
+								  const int numEnds,
+								  const dtQueryFilter* filter,
+								  dtPolyRef* path, int* pathCount, const int maxPath,
+								  int* endFoundIdx) const
+{
 	dtAssert(m_nav);
 	dtAssert(m_nodePool);
 	dtAssert(m_openList);
@@ -983,22 +1010,35 @@ dtStatus dtNavMeshQuery::findPath(dtPolyRef startRef, dtPolyRef endRef,
 		return DT_FAILURE | DT_INVALID_PARAM;
 
 	*pathCount = 0;
+
+	if (isMultiEnd && endFoundIdx)
+		*endFoundIdx = 0;
 	
 	// Validate input
-	if (!m_nav->isValidPolyRef(startRef) || !m_nav->isValidPolyRef(endRef) ||
+	if (!m_nav->isValidPolyRef(startRef) || 
 		!startPos || !dtVisfinite(startPos) ||
-		!endPos || !dtVisfinite(endPos) ||
+		!endPoses || 
 		!filter || !path || maxPath <= 0)
 	{
 		return DT_FAILURE | DT_INVALID_PARAM;
 	}
 
-	if (startRef == endRef)
+	for (int i = 0; i < (isMultiEnd ? numEnds : 1); ++i) 
 	{
-		path[0] = startRef;
-		*pathCount = 1;
-		return DT_SUCCESS;
+		if (!m_nav->isValidPolyRef(endRefs[i]) || !dtVisfinite(&endPoses[3 * i]))
+			return DT_FAILURE | DT_INVALID_PARAM;
 	}
+
+	for (int i = 0; i < (isMultiEnd ? numEnds : 1); ++i)
+	{
+		if (startRef == endRefs[i])
+		{
+			path[0] = startRef;
+			*pathCount = 1;
+			return DT_SUCCESS;
+		}
+	}
+
 	
 	m_nodePool->clear();
 	m_openList->clear();
@@ -1007,16 +1047,24 @@ dtStatus dtNavMeshQuery::findPath(dtPolyRef startRef, dtPolyRef endRef,
 	dtVcopy(startNode->pos, startPos);
 	startNode->pidx = 0;
 	startNode->cost = 0;
-	startNode->total = dtVdist(startPos, endPos) * H_SCALE;
 	startNode->id = startRef;
 	startNode->flags = DT_NODE_OPEN;
+
+	startNode->total = FLT_MAX;
+	for (int i = 0; i < (isMultiEnd ? numEnds : 1); ++i) 
+	{
+		const float newTotal = dtVdist(startNode->pos, &endPoses[3 * i]) * H_SCALE;
+		if (!isMultiEnd || newTotal < startNode->total)
+			startNode->total = newTotal;
+	}
+
 	m_openList->push(startNode);
 	
 	dtNode* lastBestNode = startNode;
 	float lastBestNodeCost = startNode->total;
 	
 	bool outOfNodes = false;
-	
+	bool isGoalFound = false;
 	while (!m_openList->empty())
 	{
 		// Remove node from open list and put it in closed list.
@@ -1024,12 +1072,31 @@ dtStatus dtNavMeshQuery::findPath(dtPolyRef startRef, dtPolyRef endRef,
 		bestNode->flags &= ~DT_NODE_OPEN;
 		bestNode->flags |= DT_NODE_CLOSED;
 		
-		// Reached the goal, stop searching.
-		if (bestNode->id == endRef)
 		{
-			lastBestNode = bestNode;
-			break;
+			float bestEndDist = FLT_MAX;
+			for (int i = 0; i < (isMultiEnd ? numEnds : 1); ++i) 
+			{
+				// Reached the goal, stop searching.
+				if (bestNode->id == endRefs[i])
+				{
+					lastBestNode = bestNode;
+					isGoalFound = true;
+
+					if (isMultiEnd && endFoundIdx)
+					{
+						const float endDist = dtVdist(bestNode->pos, &endPoses[3 * i]);
+						if (endDist < bestEndDist)
+						{
+							*endFoundIdx = i;
+							bestEndDist = endDist;
+						}
+					}
+				}
+			}
 		}
+
+		if (isGoalFound)
+			break;
 		
 		// Get current poly and tile.
 		// The API input has been checked already, skip checking internal data.
@@ -1086,26 +1153,35 @@ dtStatus dtNavMeshQuery::findPath(dtPolyRef startRef, dtPolyRef endRef,
 			}
 
 			// Calculate cost and heuristic.
-			float cost = 0;
-			float heuristic = 0;
-			
+			float cost = FLT_MAX;
+			float heuristic = FLT_MAX;
+			bool isSpecialCase = false;	
 			// Special case for last node.
-			if (neighbourRef == endRef)
+			for (int i = 0; i < (isMultiEnd ? numEnds : 1); ++i) 
 			{
-				// Cost
-				const float curCost = filter->getCost(bestNode->pos, neighbourNode->pos,
-													  parentRef, parentTile, parentPoly,
-													  bestRef, bestTile, bestPoly,
-													  neighbourRef, neighbourTile, neighbourPoly);
-				const float endCost = filter->getCost(neighbourNode->pos, endPos,
-													  bestRef, bestTile, bestPoly,
-													  neighbourRef, neighbourTile, neighbourPoly,
-													  0, 0, 0);
-				
-				cost = bestNode->cost + curCost + endCost;
-				heuristic = 0;
+				if (neighbourRef == endRefs[i])
+				{
+					// Cost
+					const float curCost = filter->getCost(bestNode->pos, neighbourNode->pos,
+														  parentRef, parentTile, parentPoly,
+														  bestRef, bestTile, bestPoly,
+														  neighbourRef, neighbourTile, neighbourPoly);
+					const float endCost = filter->getCost(neighbourNode->pos, &endPoses[3 * i],
+														  bestRef, bestTile, bestPoly,
+														  neighbourRef, neighbourTile, neighbourPoly,
+														  0, 0, 0);
+					const float newCost = bestNode->cost + curCost + endCost;
+					if (!isMultiEnd || newCost < cost)
+					{
+						cost = newCost;
+					}
+
+					heuristic = 0;
+					isSpecialCase = true;
+				}
 			}
-			else
+
+			if (!isSpecialCase)
 			{
 				// Cost
 				const float curCost = filter->getCost(bestNode->pos, neighbourNode->pos,
@@ -1113,7 +1189,14 @@ dtStatus dtNavMeshQuery::findPath(dtPolyRef startRef, dtPolyRef endRef,
 													  bestRef, bestTile, bestPoly,
 													  neighbourRef, neighbourTile, neighbourPoly);
 				cost = bestNode->cost + curCost;
-				heuristic = dtVdist(neighbourNode->pos, endPos)*H_SCALE;
+
+
+				for (int i = 0; i < (isMultiEnd ? numEnds : 1); ++i) 
+				{
+					const float newHeuristic =  dtVdist(neighbourNode->pos, &endPoses[3 * i]) * H_SCALE;
+					if (!isMultiEnd || newHeuristic < heuristic)
+						heuristic = newHeuristic;
+				}
 			}
 
 			const float total = cost + heuristic;
@@ -1155,7 +1238,7 @@ dtStatus dtNavMeshQuery::findPath(dtPolyRef startRef, dtPolyRef endRef,
 
 	dtStatus status = getPathToNode(lastBestNode, path, pathCount, maxPath);
 
-	if (lastBestNode->id != endRef)
+	if (!isGoalFound)
 		status |= DT_PARTIAL_RESULT;
 
 	if (outOfNodes)

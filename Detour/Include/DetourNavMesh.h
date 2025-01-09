@@ -369,6 +369,11 @@ public:
 	/// @return The status flags for the operation.
 	dtStatus addTile(unsigned char* data, int dataSize, int flags, dtTileRef lastRef, dtTileRef* result);
 	
+	/// Adds all off-mesh connections between two specified tiles.
+	///  @param[in]		tile		Tile containing the starting point of the connection.
+	///  @param[in]		target		Tile containing the ending point of the connection.
+	void connectGlobalOffMeshLinks(const dtMeshTile* tile, const dtMeshTile* target);
+	
 	/// Removes the specified tile from the navigation mesh.
 	///  @param[in]		ref			The reference of the tile to remove.
 	///  @param[out]	data		Data associated with deleted tile.
@@ -606,8 +611,11 @@ public:
 #endif
 	}
 
+	/// Simply a getter for m_hasOffMesh; (for encapsulation purposes)
+	inline bool hasOffMesh(){return m_hasOffMesh;}
+
 	/// @}
-	
+
 private:
 	// Explicitly disabled copy constructor and copy assignment operator.
 	dtNavMesh(const dtNavMesh&);
@@ -666,7 +674,9 @@ private:
 	dtMeshTile** m_posLookup;			///< Tile hash lookup.
 	dtMeshTile* m_nextFree;				///< Freelist of tiles.
 	dtMeshTile* m_tiles;				///< List of tiles.
-		
+	
+	bool m_hasOffMesh;					///< Does this mesh contain off-mesh connection(s)?
+
 #ifndef DT_POLYREF64
 	unsigned int m_saltBits;			///< Number of salt bits in the tile ID.
 	unsigned int m_tileBits;			///< Number of tile bits in the tile ID.

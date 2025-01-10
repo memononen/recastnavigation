@@ -1902,7 +1902,7 @@ dtStatus dtNavMeshQuery::findStraightPath(const float* startPos, const float* en
 			// Right vertex.
 			if (dtTriArea2D(portalApex, portalRight, right) <= 0.0f)
 			{
-				if (dtVequal(portalApex, portalRight) || dtTriArea2D(portalApex, portalLeft, right) > 0.0f)
+				if (dtVequal(portalApex, portalRight) || dtVequal(right, portalRight) || dtTriArea2D(portalApex, portalLeft, right) >= 0.0f)
 				{
 					dtVcopy(portalRight, right);
 					rightPolyRef = (i+1 < pathSize) ? path[i+1] : 0;
@@ -1953,7 +1953,7 @@ dtStatus dtNavMeshQuery::findStraightPath(const float* startPos, const float* en
 			// Left vertex.
 			if (dtTriArea2D(portalApex, portalLeft, left) >= 0.0f)
 			{
-				if (dtVequal(portalApex, portalLeft) || dtTriArea2D(portalApex, portalRight, left) < 0.0f)
+				if (dtVequal(portalApex, portalLeft) || dtVequal(left, portalLeft) || dtTriArea2D(portalApex, portalRight, left) <= 0.0f)
 				{
 					dtVcopy(portalLeft, left);
 					leftPolyRef = (i+1 < pathSize) ? path[i+1] : 0;

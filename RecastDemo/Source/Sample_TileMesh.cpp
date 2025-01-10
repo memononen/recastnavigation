@@ -203,8 +203,6 @@ Sample_TileMesh::Sample_TileMesh() :
 Sample_TileMesh::~Sample_TileMesh()
 {
 	cleanup();
-	dtFreeNavMesh(m_navMesh);
-	m_navMesh = 0;
 }
 
 void Sample_TileMesh::cleanup()

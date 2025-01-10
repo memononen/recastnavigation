@@ -858,9 +858,11 @@ Sample_TempObstacles::Sample_TempObstacles() :
 
 Sample_TempObstacles::~Sample_TempObstacles()
 {
-	dtFreeNavMesh(m_navMesh);
-	m_navMesh = 0;
 	dtFreeTileCache(m_tileCache);
+
+	delete m_talloc;
+	delete m_tcomp;
+	delete m_tmproc;
 }
 
 void Sample_TempObstacles::handleSettings()

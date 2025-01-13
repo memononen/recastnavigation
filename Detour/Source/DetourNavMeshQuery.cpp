@@ -2681,6 +2681,12 @@ dtStatus dtNavMeshQuery::raycast(dtPolyRef startRef, const float* startPos, cons
 		tile = nextTile;
 		prevPoly = poly;
 		poly = nextPoly;
+
+		if (status & DT_BUFFER_TOO_SMALL)
+		{
+			status |= DT_PARTIAL_RESULT;
+			break;
+		}
 	}
 	
 	hit->pathCount = n;

@@ -56,6 +56,10 @@ typedef uint64_t dtTileRef;
 typedef unsigned int dtTileRef;
 #endif
 
+#ifndef DT_MAX_NEI_PER_EDGE
+#define DT_MAX_NEI_PER_EDGE 4
+#endif
+
 /// The maximum number of vertices per navigation polygon.
 /// @ingroup detour
 static const int DT_VERTS_PER_POLYGON = 6;
@@ -635,7 +639,7 @@ private:
 	void baseOffMeshLinks(dtMeshTile* tile);
 
 	/// Builds external polygon links for a tile.
-	void connectExtLinks(dtMeshTile* tile, dtMeshTile* target, int side);
+	dtStatus connectExtLinks(dtMeshTile* tile, dtMeshTile* target, int side);
 	/// Builds external polygon links for a tile.
 	void connectExtOffMeshLinks(dtMeshTile* tile, dtMeshTile* target, int side);
 	

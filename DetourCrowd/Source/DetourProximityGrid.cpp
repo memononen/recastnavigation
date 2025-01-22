@@ -137,6 +137,9 @@ int dtProximityGrid::queryItems(const float minx, const float miny,
 								const float maxx, const float maxy,
 								unsigned short* ids, const int maxIds) const
 {
+	if (!ids || maxIds <= 0)
+		return 0;
+
 	const int iminx = (int)dtMathFloorf(minx * m_invCellSize);
 	const int iminy = (int)dtMathFloorf(miny * m_invCellSize);
 	const int imaxx = (int)dtMathFloorf(maxx * m_invCellSize);
@@ -163,9 +166,9 @@ int dtProximityGrid::queryItems(const float minx, const float miny,
 					// Item not found, add it.
 					if (i == end)
 					{
+						ids[n++] = item.id;
 						if (n >= maxIds)
 							return n;
-						ids[n++] = item.id;
 					}
 				}
 				idx = item.next;

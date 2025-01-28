@@ -495,6 +495,66 @@ static bool walkContour(dtTileCacheLayer& layer, int x, int y, dtTempContour& co
 		
 		if (rn != layer.regs[x+y*w])
 		{
+			//
+			// Changes by Guerrilla (Carles):
+			//
+			// The simplifyContour function will create an initial polygon from those vertices
+			// that begin a new neighbour region (then it iteratively adds vertices to it until
+			// the deviation error is less than the desired one).
+			// Having one segment for neighbour region ensures that the simplification is
+			// performed starting on coincident segments for both contours, resulting on the
+			// same simplified contour segment for the two neighbour regions.
+			//
+			// Unfortunately, as neighbourhood is checked in 4 directions instead of 8,
+			// this approach misses the special case in which a contour touches another one
+			// only in diagonal, while a third contour is neighbour of the other two.
+			//
+			// For example:
+			//             __________
+			//        ____|   ___    |
+			//       |    |  | 2 |   |
+			//       |    |__|___|   |
+			//       |  1    |     3 |
+			//       |_______|_______|
+			//
+			// In this case the contour for region 1 thinks that it's only neighbour to the
+			// contour for region 3, while the contour for region 3, around the same vertex,
+			// thinks it's neighbour to both region 1 and 2. Then, during the simplifyContour,
+			// for the first contour only one segment will be created for the initial polygon,
+			// while for the third contour two segments will be created instead. This will
+			// then, most likely, cause a different simplification for both contours, and then
+			// a wrong navmesh as a result.
+			//
+			// To fix this, here we detect the situation where a neighbour region is touched
+			// in diagonal. Then the relevant vertex is flagged by setting its region's MSB
+			// (most significant bit) to 1.
+			// The simplifyContour function will later check this bit and add the vertex to
+			// the initial polygon (and clear the MSB).
+			//
+			if (cont.nverts > 0 && rn < 0xfff8)
+			{
+				// There shouldn't be more than 0x8000 regions (other parts of Recast assumes so),
+				// but check just in case.
+				dtAssert(rn < 0x8000);
+
+				// Check if p (previous position) has the same neighbour region as the current position.
+				int pi = (cont.nverts-1)*4;
+				int pr = cont.verts[pi+3];
+				if (rn == pr)
+				{
+					// Check if d (diagonal position, between the current and the previous positions) has a new neighbour region.
+					int dx = x + getDirOffsetX(dir);
+					int dy = y + getDirOffsetY(dir);
+					int ddir = (dir+3) & 0x3; // Rotate CCW
+					unsigned short rd = getNeighbourReg(layer, dx, dy, ddir);
+					if (rd < 0x8000 && rn != rd && rd != layer.regs[x+y*w])
+					{
+						// Change of neighbour region found along the diagonal -> Let simplifyContour know about it.
+						cont.verts[pi+3] |= 0x8000;
+					}
+				}
+			}
+
 			// Solid edge.
 			int px = x;
 			int pz = y;
@@ -569,13 +629,42 @@ static void simplifyContour(dtTempContour& cont, const float maxError)
 	for (int i = 0; i < cont.nverts; ++i)
 	{
 		int j = (i+1) % cont.nverts;
+
 		// Check for start of a wall segment.
-		unsigned char ra = cont.verts[j*4+3];
-		unsigned char rb = cont.verts[i*4+3];
-		if (ra != rb)
+		//
+		// Changes by Guerrilla (Carles):
+		// On the original Recast code the initial polygon was formed by those vertices
+		// that begin a new neighbour region. To fix a special case that this approach
+		// was missing (see comment in walkContour) walkContour flags those additional
+		// vertices that also have to form the initial polygon by setting the MSB
+		// (most significant bit) of the region's position to 1.
+		// After adding the vertex, the region's MSB is cleared as expected by the
+		// rest of the code.
+
+		unsigned short ra = cont.verts[i*4+3];
+		unsigned short rb = cont.verts[j*4+3];
+
+		unsigned short unmasked_a = (ra >= 0xfff8? ra : ra & ~0x8000);
+		unsigned short unmasked_b = (rb >= 0xfff8? rb : rb & ~0x8000);
+
+		if (unmasked_a != unmasked_b || unmasked_a != ra)
 			cont.poly[cont.npoly++] = (unsigned short)i;
+
+		if (unmasked_a != ra)
+			cont.verts[i*4+3] &= ~0x8000;
 	}
-	if (cont.npoly < 2)
+
+	// Changes by Guerrilla (Carles):
+	// With the fix for contours that are neighbours only in diagonal (see comment
+	// above and in walkContour), it's possible now for an interiour contour
+	// to have only one vertex in the initial polygon. To ensure it's simplified
+	// the same way as the contour of the surrounding region, add as the second
+	// vertex the same as the first (this is what the surrounding contour does).
+	if (cont.npoly == 1)
+	{
+		cont.poly[cont.npoly++] = cont.poly[0];
+	}
+	else if (cont.npoly == 0)
 	{
 		// If there is no transitions at all,
 		// create some initial points for the simplification process. 
@@ -603,46 +692,53 @@ static void simplifyContour(dtTempContour& cont, const float maxError)
 				uri = i;
 			}
 		}
-		cont.npoly = 0;
 		cont.poly[cont.npoly++] = (unsigned short)lli;
 		cont.poly[cont.npoly++] = (unsigned short)uri;
 	}
 	
 	// Add points until all raw points are within
 	// error tolerance to the simplified shape.
+	//
+	// Changes by Guerrilla (Carles):
+	// Ensure that the parameters given to distancePtSeg below (to calculate the
+	// deviation error for a point) are passed in the same order for opposite contours.
+	// Not doing so sometimes makes distancePtSeg return a slightly different result
+	// due to floating error inaccuracies, which can make the opposite contour
+	// generate a different simplification.
 	for (int i = 0; i < cont.npoly; )
 	{
 		int ii = (i+1) % cont.npoly;
-		
-		const int ai = (int)cont.poly[i];
-		const int ax = (int)cont.verts[ai*4+0];
-		const int az = (int)cont.verts[ai*4+2];
-		
-		const int bi = (int)cont.poly[ii];
-		const int bx = (int)cont.verts[bi*4+0];
-		const int bz = (int)cont.verts[bi*4+2];
-		
+
+		int ai = (int)cont.poly[i];
+		int ax = (int)cont.verts[ai*4+0];
+		int az = (int)cont.verts[ai*4+2];
+
+		int bi = (int)cont.poly[ii];
+		int bx = (int)cont.verts[bi*4+0];
+		int bz = (int)cont.verts[bi*4+2];
+
 		// Find maximum deviation from the segment.
 		float maxd = 0;
 		int maxi = -1;
 		int ci, cinc, endi;
-		
+
 		// Traverse the segment in lexilogical order so that the
 		// max deviation is calculated similarly when traversing
 		// opposite segments.
 		if (bx > ax || (bx == ax && bz > az))
 		{
 			cinc = 1;
-			ci = (ai+cinc) % cont.nverts;
-			endi = bi;
 		}
 		else
 		{
 			cinc = cont.nverts-1;
-			ci = (bi+cinc) % cont.nverts;
-			endi = ai;
+			dtSwap(ai, bi);
+			dtSwap(ax, bx);
+			dtSwap(az, bz);
 		}
-		
+		ci = (ai+cinc) % cont.nverts;
+		endi = bi;
+
 		// Tessellate only outer edges or edges between areas.
 		while (ci != endi)
 		{

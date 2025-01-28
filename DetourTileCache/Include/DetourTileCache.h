@@ -246,7 +246,7 @@ private:
 	int m_nreqs;
 	
 	static const int MAX_UPDATE = 64;
-	dtCompressedTileRef m_update[MAX_UPDATE];
+	dtCompressedTileRef m_update[MAX_UPDATE + DT_MAX_TOUCHED_TILES];//Allocate enough memory to always complete one obstacle
 	int m_nupdate;
 };
 

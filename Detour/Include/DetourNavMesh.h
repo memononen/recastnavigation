@@ -306,9 +306,6 @@ struct dtMeshTile
 	int dataSize;							///< Size of the tile data.
 	int flags;								///< Tile flags. (See: #dtTileFlags)
 	dtMeshTile* next;						///< The next free tile, or the next tile in the spatial grid.
-private:
-	dtMeshTile(const dtMeshTile&);
-	dtMeshTile& operator=(const dtMeshTile&);
 };
 
 /// Get flags for edge in detail triangle.

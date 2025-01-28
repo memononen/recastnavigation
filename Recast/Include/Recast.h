@@ -872,6 +872,32 @@ bool rcCreateHeightfield(rcContext* context, rcHeightfield& heightfield, int siz
 /// @param[out]		triAreaIDs			The triangle area ids. [Length: >= @p nt]
 void rcMarkWalkableTriangles(rcContext* context, float walkableSlopeAngle, const float* verts, int numVerts,
 							 const int* tris, int numTris, unsigned char* triAreaIDs); 
+void rcMarkWalkableTriangles(rcContext* ctx, float walkableSlopeAngle, const float* verts, int numVerts,
+							 const unsigned short* tris, int numTris, unsigned char* triAreaIDs);
+
+/// Sets the area id of all triangles with a slope below the specified value
+/// to #RC_WALKABLE_AREA.
+///
+/// Only sets the area id's for the walkable triangles.  Does not alter the
+/// area id's for un-walkable triangles.
+/// 
+/// See the #rcConfig documentation for more information on the configuration parameters.
+/// 
+/// @see rcHeightfield, rcClearUnwalkableTrianglesCosAngle, rcRasterizeTriangles
+/// 
+/// @ingroup recast
+/// @param[in,out]	context					The build context to use during the operation.
+/// @param[in]		walkableSlopeCosAngle	The cosine of the maximum slope that is considered walkable.
+/// 										[Limits: 0 <= value < 90] [Units: Degrees]
+/// @param[in]		verts					The vertices. [(x, y, z) * @p nv]
+/// @param[in]		numVerts				The number of vertices.
+/// @param[in]		tris					The triangle vertex indices. [(vertA, vertB, vertC) * @p nt]
+/// @param[in]		numTris					The number of triangles.
+/// @param[out]		triAreaIDs				The triangle area ids. [Length: >= @p nt]
+void rcMarkWalkableTrianglesCosAngle(rcContext* context, float walkableSlopeCosAngle, const float* verts, int numVerts,
+									 const int* tris, int numTris, unsigned char* triAreaIDs); 
+void rcMarkWalkableTrianglesCosAngle(rcContext* ctx, float walkableSlopeCosAngle, const float* verts, int numVerts,
+									 const unsigned short* tris, int numTris, unsigned char* triAreaIDs);
 
 /// Sets the area id of all triangles with a slope greater than or equal to the specified value to #RC_NULL_AREA.
 /// 
@@ -880,7 +906,7 @@ void rcMarkWalkableTriangles(rcContext* context, float walkableSlopeAngle, const
 /// 
 /// See the #rcConfig documentation for more information on the configuration parameters.
 /// 
-/// @see rcHeightfield, rcClearUnwalkableTriangles, rcRasterizeTriangles
+/// @see rcHeightfield, rcClearUnwalkableTrianglesCosAngle, rcRasterizeTriangles
 /// 
 /// @ingroup recast
 /// @param[in,out]	context				The build context to use during the operation.
@@ -893,6 +919,31 @@ void rcMarkWalkableTriangles(rcContext* context, float walkableSlopeAngle, const
 /// @param[out]		triAreaIDs			The triangle area ids. [Length: >= @p nt]
 void rcClearUnwalkableTriangles(rcContext* context, float walkableSlopeAngle, const float* verts, int numVerts,
 								const int* tris, int numTris, unsigned char* triAreaIDs); 
+void rcClearUnwalkableTriangles(rcContext* context, float walkableSlopeAngle, const float* verts, int numVerts,
+								const unsigned short* tris, int numTris, unsigned char* triAreaIDs); 
+
+/// Sets the area id of all triangles with a slope greater than or equal to the specified value to #RC_NULL_AREA.
+/// 
+/// Only sets the area id's for the un-walkable triangles.  Does not alter the
+/// area id's for walkable triangles.
+/// 
+/// See the #rcConfig documentation for more information on the configuration parameters.
+/// 
+/// @see rcHeightfield, rcClearUnwalkableTriangles, rcRasterizeTriangles
+/// 
+/// @ingroup recast
+/// @param[in,out]	context					The build context to use during the operation.
+/// @param[in]		walkableSlopeCosAngle	The cosine of the maximum slope that is considered walkable.
+/// 										[Limits: 0 <= value < 90] [Units: Degrees]
+/// @param[in]		verts					The vertices. [(x, y, z) * @p nv]
+/// @param[in]		numVerts				The number of vertices.
+/// @param[in]		tris					The triangle vertex indices. [(vertA, vertB, vertC) * @p nt]
+/// @param[in]		numTris					The number of triangles.
+/// @param[out]		triAreaIDs				The triangle area ids. [Length: >= @p nt]
+void rcClearUnwalkableTrianglesCosAngle(rcContext* context, float walkableSlopeCosAngle, const float* verts, int numVerts,
+										const int* tris, int numTris, unsigned char* triAreaIDs); 
+void rcClearUnwalkableTrianglesCosAngle(rcContext* context, float walkableSlopeCosAngle, const float* verts, int numVerts,
+										const unsigned short* tris, int numTris, unsigned char* triAreaIDs);
 
 /// Adds a span to the specified heightfield.
 /// 

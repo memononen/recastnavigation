@@ -196,12 +196,17 @@ static int getNeighbours(const float* pos, const float height, const float range
 								pos[0]+range, pos[2]+range,
 								ids, MAX_NEIS);
 	
+	unsigned char ignoreGroupMask = skip ? skip->params.ignoreGroupFlags : 0u;
+
 	for (int i = 0; i < nids; ++i)
 	{
 		const dtCrowdAgent* ag = agents[ids[i]];
 		
 		if (ag == skip) continue;
 		
+		// Should `skip` ignore their neighbour `ag`?
+		if ((ag->params.agentGroupFlags & ignoreGroupMask) != 0) continue;
+
 		// Check for overlap.
 		float diff[3];
 		dtVsub(diff, pos, ag->npos);

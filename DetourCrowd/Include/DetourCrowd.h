@@ -96,6 +96,10 @@ struct dtCrowdAgentParams
 	/// The index of the query filter used by this agent.
 	unsigned char queryFilterType;
 
+	/// Neighbouring agent filter flags
+	unsigned char agentGroupFlags;
+	unsigned char ignoreGroupFlags;
+
 	/// User defined data attached to the agent.
 	void* userData;
 };
